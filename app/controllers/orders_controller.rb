@@ -18,6 +18,23 @@ class OrdersController < Spree::BaseController
     @order.save
   end
 
+  create.after do
+      # add the specified product to the order
+      v = Variant.find(params[:variant][:id])
+      q = 1
+      # if a quantity was passed in, sanity check it
+      if params[:order][:quantity]
+          begin
+              q = params[:order][:quantity].to_i
+          rescue
+              q = 1
+          end
+      end
+      @order.add_variant(v,q)
+      @order.save
+  end
+
+     
   # override the default r_c behavior (remove flash - redirect to edit details instead of show)
   create do
     flash nil 
