@@ -22,13 +22,12 @@ class OrdersController < Spree::BaseController
       # add the specified product to the order
       v = Variant.find(params[:variant][:id])
       q = 1
-      # if a quantity was passed in, sanity check it
-      if params[:order][:quantity]
-          begin
-              q = params[:order][:quantity].to_i
-          rescue
-              q = 1
-          end
+      # If a quantity was passed int, sanity check it. If not
+      # then the rescue will make sure it's set to 1
+      begin
+          q = params[:order][:quantity].to_i
+      rescue
+          q = 1
       end
       @order.add_variant(v,q)
       @order.save
