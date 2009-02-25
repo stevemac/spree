@@ -22,17 +22,20 @@ class OrdersController < Spree::BaseController
       # add the specified product to the order
       v = Variant.find(params[:variant][:id])
       q = 1
-      # If a quantity was passed int, sanity check it. If not
-      # then the rescue will make sure it's set to 1
-      begin
-          q = params[:order][:quantity].to_i
-      rescue
-          q = 1
+      # see if a quantity was apecified
+      if params[:order]
+          if params[:order][:quantity]
+              # sanity check
+              begin
+                  q = params[:order][:quantity].to_i
+              rescue
+                  q = 1
+              end
+          end
       end
-      @order.add_variant(v,q)
-      @order.save
-  end
-
+      @order.add_variant(v,q)                                    
+      @order.save                                                
+  end                                                         
      
   # override the default r_c behavior (remove flash - redirect to edit details instead of show)
   create do
