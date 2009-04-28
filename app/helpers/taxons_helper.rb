@@ -1,18 +1,19 @@
 module TaxonsHelper
-  def breadcrumbs(taxon)
-    crumbs = "<div class='breadcrumbs'>"
-    crumbs += link_to t('products'), products_url
-    unless taxon
-      return crumbs += "</div>"
+  def breadcrumbs(taxon, separator="&nbsp;&raquo;&nbsp;")
+    return "" if current_page?("/")
+    crumbs = [content_tag(:li, link_to("Home" , root_path) + separator)]
+    if taxon
+      crumbs << content_tag(:li, link_to(t('products') , products_path) + separator)
+      crumbs << taxon.ancestors.reverse.collect { |ancestor| content_tag(:li, link_to(ancestor.name , seo_url(ancestor)) + separator) } unless taxon.ancestors.empty?
+      crumbs << content_tag(:li, content_tag(:span, taxon.name))
+    else
+      crumbs << content_tag(:li, content_tag(:span, t('products')))
     end
-    crumbs += image_tag("breadcrumb.gif")
-    unless taxon.ancestors.empty?
-      crumbs += taxon.ancestors.reverse.collect { |ancestor| link_to ancestor.name, seo_url(ancestor) }.join( image_tag("breadcrumb.gif") )
-      crumbs += image_tag("breadcrumb.gif")
-    end
-    crumbs += taxon.name
-    crumbs += "</div>"
+    crumb_list = content_tag(:ul, crumbs)
+
+    content_tag(:div, crumb_list + content_tag(:br, nil, :class => 'clear'), :class => 'breadcrumbs')
   end
+
   
   # Retrieves the collection of products to display when "previewing" a taxon.  This is abstracted into a helper so 
   # that we can use configurations as well as make it easier for end users to override this determination.  One idea is

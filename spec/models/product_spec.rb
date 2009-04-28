@@ -29,7 +29,7 @@ describe Product do
     @product.should_not be_valid
   end
 
-  ['Name', 'Master Price', 'Description'].each do |field|
+  ['Name', 'Master Price'].each do |field|
     it "should require #{field}" do
       @product.should_not be_valid
       @product.errors.full_messages.should include("#{field} #{I18n.translate("activerecord.errors.messages.blank")}")
@@ -83,8 +83,8 @@ describe Product do
   end
 
   describe "permalinks" do
-    before(:each) do
-      @product.name = "Air force ones"
+    before(:each) do 
+      @product = Product.new(:name => "Air force ones", :description => "Whatever", :master_price => 10.00)
     end
 
     it "should not have a nil permalink with a saved name" do

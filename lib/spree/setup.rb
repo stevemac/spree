@@ -1,7 +1,7 @@
 #######################################################################################################
 # Substantial portions of this code were adapted from the Radiant CMS project (http://radiantcms.org) #
 #######################################################################################################
-require "highline"
+require 'highline/import' 
 require 'custom_fixtures'
 require 'find'
 
@@ -42,7 +42,8 @@ module Spree
       attributes = {
         :password => password,
         :password_confirmation => password,
-        :email => email
+        :email => email,
+        :login => email
       }
       admin = User.create(attributes)
       

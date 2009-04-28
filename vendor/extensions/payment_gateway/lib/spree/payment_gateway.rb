@@ -7,7 +7,7 @@ module Spree
       gateway_error(response) unless response.success?
       
       # create a creditcard_payment for the amount that was authorized
-      creditcard_payment = order.creditcard_payments.create(:amount => amount, :creditcard => self)
+      creditcard_payment = order.creditcard_payments.create(:amount => 0, :creditcard => self)
       # create a transaction to reflect the authorization
       creditcard_payment.creditcard_txns << CreditcardTxn.new(
         :amount => amount,
@@ -51,14 +51,16 @@ module Spree
     end
     
     def gateway_error(response)
-      text = response.params['message'] || response.params['response_reason_text']      
-      msg = "#{t('gateway_error')} ... #{text}"
+      text = response.params['message'] || 
+             response.params['response_reason_text'] ||
+             response.message
+      msg = "#{I18n.t('gateway_error')} ... #{text}"
       logger.error(msg)
       raise Spree::GatewayError.new(msg)
     end
         
     def gateway_options
-      options = {:billing_address => generate_address_hash(order.bill_address), 
+      options = {:billing_address => generate_address_hash(address), 
                  :shipping_address => generate_address_hash(order.ship_address)}
       options.merge minimal_gateway_options
     end    
@@ -74,8 +76,8 @@ module Spree
     # a billing address when authorizing/voiding a previously captured transaction.  So omits these 
     # options in this case since they aren't necessary.  
     def minimal_gateway_options
-      {:email => order.user.email, 
-       :customer => order.user.email, 
+      {:email => order.email, 
+       :customer => order.email, 
        :ip => order.ip_address, 
        :order_id => order.number,
        :shipping => order.ship_amount * 100,

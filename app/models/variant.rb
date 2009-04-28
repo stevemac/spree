@@ -12,8 +12,12 @@ class Variant < ActiveRecord::Base
   # default variant scope only lists non-deleted variants
   named_scope :active, :conditions => "deleted_at is null"
   named_scope :deleted, :conditions => "not deleted_at is null"
-  
-  @fields =[]
+ 
+  # default extra fields for shipping purposes 
+  @fields = [ {:name => 'Weight', :only => [:variant], :format => "%.2f"},
+              {:name => 'Height', :only => [:variant], :format => "%.2f"},
+              {:name => 'Width',  :only => [:variant], :format => "%.2f"},
+              {:name => 'Depth',  :only => [:variant], :format => "%.2f"} ]
   
   def on_hand
     inventory_units.with_state("on_hand").size
@@ -21,6 +25,10 @@ class Variant < ActiveRecord::Base
 
   def on_hand=(new_level)
     @new_level = new_level
+  end
+  
+  def on_backorder
+    inventory_units.with_state("backordered").size
   end
   
   def in_stock
@@ -43,6 +51,10 @@ class Variant < ActiveRecord::Base
       super
     end
   end
+  
+  def orderable?
+    self.in_stock || ( !self.in_stock && self.allow_backordering) || Spree::Config[:allow_backorders]
+  end
 
   private
 
@@ -51,7 +63,17 @@ class Variant < ActiveRecord::Base
       @new_level = @new_level.to_i
       # don't allow negative on_hand inventory
       return if @new_level < 0
-      adjustment = @new_level - on_hand
+      
+      # fill backordered orders first
+      inventory_units.with_state("backordered").each{|iu|
+        if @new_level > 0
+          iu.fill_backorder
+          @new_level = @new_level - 1
+        end
+        break if @new_level < 1
+        }
+      
+      adjustment = @new_level - on_hand 
       if adjustment > 0
         InventoryUnit.create_on_hand(self, adjustment)
         reload

@@ -1,20 +1,21 @@
 class Order < ActiveRecord::Base  
-  before_create :generate_order_number
-  before_save :update_line_items
+#  before_create :generate_order_number
+  before_save :update_line_items 
+  before_create :generate_token
   
-  has_many :line_items, :dependent => :destroy, :attributes => true do
-    def in_order(variant)
-      find :first, :conditions => ['variant_id = ?', variant.id]
-    end
-  end
-  has_many :products, :through => :line_items
+  has_many :line_items, :dependent => :destroy, :attributes => true
   has_many :inventory_units
   has_many :state_events
   has_many :payments
   has_many :creditcard_payments
   has_many :creditcards
   belongs_to :user
-
+  has_many :shipments, :dependent => :destroy
+  belongs_to :bill_address, :foreign_key => "bill_address_id", :class_name => "Address"
+  belongs_to :ship_address, :foreign_key => "ship_address_id", :class_name => "Address"
+  accepts_nested_attributes_for :creditcards, :reject_if => proc { |attributes| attributes['number'].blank? }  
+  accepts_nested_attributes_for :ship_address, :bill_address
+  
   validates_associated :line_items, :message => "are not valid"
   validates_numericality_of :tax_amount
   validates_numericality_of :ship_amount
@@ -29,7 +30,14 @@ class Order < ActiveRecord::Base
   
   
   # attr_accessible is a nightmare with attachment_fu, so use attr_protected instead.
-  attr_protected :ship_amount, :tax_amount, :item_total, :total, :user, :number, :ip_address, :checkout_complete, :state
+  attr_protected :ship_amount, :tax_amount, :item_total, :total, :user, :number, :ip_address, :checkout_complete, :state, :token
+  
+  def to_param  
+    self.number if self.number
+    generate_order_number unless self.number
+    self.number.parameterize.to_s.upcase
+  end
+  make_permalink :field => :number
   
   # order state machine (see http://github.com/pluginaweek/state_machine/tree/master for details)
   state_machine :initial => 'in_progress' do    
@@ -38,15 +46,9 @@ class Order < ActiveRecord::Base
     after_transition :to => 'canceled', :do => :cancel_order
     after_transition :to => 'returned', :do => :restock_inventory
     after_transition :to => 'resumed', :do => :restore_state 
-
-    before_transition :to => 'paid', :do => :record_payment_event
-    
-    event :next do
-      transition :to => 'creditcard', :from => 'in_progress'
-      transition :to => 'new', :from => 'creditcard'
-    end
-    event :edit do
-      transition :to => 'in_progress', :from => %w{creditcard in_progress}
+     
+    event :complete do
+      transition :to => 'new', :from => 'in_progress'
     end
     event :cancel do
       transition :to => 'canceled', :if => :allow_cancel?
@@ -60,11 +62,9 @@ class Order < ActiveRecord::Base
     event :pay do
       transition :to => 'paid', :if => :allow_pay?
     end
-  end
-
-  def record_payment_event
-    # normally these types of transitions are recorded by controller
-    state_events.create(:name => I18n.t(:pay), :previous_state => state)
+    event :ship do
+      transition :to => 'shipped', :from  => 'paid'
+    end
   end
   
   def restore_state
@@ -74,7 +74,7 @@ class Order < ActiveRecord::Base
   end
 
   def allow_cancel?
-    self.checkout_complete && self.state != 'canceled'
+    self.state != 'canceled'
   end
   
   def allow_resume?
@@ -88,7 +88,7 @@ class Order < ActiveRecord::Base
   end
   
   def add_variant(variant, quantity=1)
-    current_item = line_items.in_order(variant)
+    current_item = contains?(variant)
     if current_item
       current_item.increment_quantity unless quantity > 1
       current_item.quantity = (current_item.quantity + quantity) if quantity > 1
@@ -112,12 +112,12 @@ class Order < ActiveRecord::Base
     end
   end
 
-  def generate_order_number
+  def generate_order_number                
     record = true
     while record
-      random = Array.new(9){rand(9)}.join
+      random = "R#{Array.new(9){rand(9)}.join}"                                        
       record = Order.find(:first, :conditions => ["number = ?", random])
-    end
+    end          
     self.number = random
   end          
   
@@ -138,19 +138,57 @@ class Order < ActiveRecord::Base
     self.total = self.item_total + self.ship_amount + self.tax_amount
   end 
  
-  def bill_address
-    return nil if creditcards.empty?
-    return creditcards.last.address
+  # convenience method since many stores will not allow user to create multiple shipments
+  def shipment
+    shipments.last
   end
- 
+  
+  def contains?(variant)
+    line_items.select { |line_item| line_item.variant == variant }.first
+  end
+
+  def grant_access?(token=nil)
+    return true if token && token == self.token
+    return false unless current_user_session = UserSession.find   
+    return current_user_session.user == self.user
+  end
+  def mark_shipped
+    inventory_units.each do |inventory_unit|
+      inventory_unit.ship!
+    end
+  end
+      
+  # collection of available shipping countries
+  def shipping_countries
+    ShippingMethod.all.collect { |method| method.zone.country_list }.flatten.uniq.sort_by {|item| item.send 'name'}
+  end
+  
+  def shipping_methods
+    return [] unless ship_address
+    ShippingMethod.all.select { |method| method.zone.include?(ship_address) && method.available?(self) }
+  end
+   
+  def update_totals
+    # finalize order totals 
+    unless shipment.nil?
+      calculator = shipment.shipping_method.shipping_calculator.constantize.new
+      self.ship_amount = calculator.calculate_shipping(shipment) 
+    else
+      self.ship_amount = 0
+    end
+    self.tax_amount = calculate_tax
+  end  
+
   private
   def complete_order
     self.update_attribute(:checkout_complete, true)
     InventoryUnit.sell_units(self)
     if user && user.email
       OrderMailer.deliver_confirm(self)
-    end
-  end
+    end   
+    update_totals
+    save
+  end   
   
   def cancel_order
     restock_inventory
@@ -167,5 +205,9 @@ class Order < ActiveRecord::Base
     self.line_items.each do |line_item|
       LineItem.destroy(line_item.id) if line_item.quantity == 0
     end
+  end
+  
+  def generate_token
+    self.token = Authlogic::Random.friendly_token    
   end      
 end

@@ -18,24 +18,33 @@ ActionController::Routing::Routes.draw do |map|
 
   # Allow downloading Web Service WSDL as a file with an extension
   # instead of a file named 'wsdl'
-  map.connect ':controller/service.wsdl', :action => 'wsdl'
+  #map.connect ':controller/service.wsdl', :action => 'wsdl'
 
   # map.connect '/locale/:new_locale', :controller => 'locale', :action => 'set_session_locale'
 
   map.root :controller => "products", :action => "index"
+
+  map.resource :user_session, :member => {:login_bar => :get}
+  map.resource :account, :controller => "users"
+  map.resources :password_resets
+  
   # login mappings should appear before all others
-  map.login '/login', :controller => 'account', :action => 'login'
-  map.logout '/logout', :controller => 'account', :action => 'logout'
+  map.login '/login', :controller => 'user_sessions', :action => 'new'
+  map.logout '/logout', :controller => 'user_sessions', :action => 'destroy'
   map.signup '/signup', :controller => 'users', :action => 'new'
   map.admin '/admin', :controller => 'admin/overview', :action => 'index'  
-
+  
   map.resources :tax_categories
   map.resources :countries, :has_many => :states, :only => :index
   map.resources :states, :only => :index
   map.resources :users
   map.resources :products, :member => {:change_image => :post}
   map.resources :addresses
-  map.resources :orders, :member => {:address_info => :get, :checkout => :get}, :has_many => [:line_items, :creditcards, :creditcard_payments]
+  map.resources :orders, :member => {:address_info => :get, :checkout => :any}, :has_many => [:line_items, :creditcards, :creditcard_payments]
+  map.resources :orders, :member => {:fatal_shipping => :get} do |order|
+    order.resources :shipments, :member => {:shipping_method => :get}
+  end
+  #map.resources :shipments, :member => {:shipping_method => :any}
 
   # route globbing for pretty nested taxon and product paths
   map.taxons_with_product '/t/*taxon_path/p/:id', :controller => 'products', :action => 'show'
@@ -62,6 +71,8 @@ ActionController::Routing::Routes.draw do |map|
     admin.resources :prototypes, :member => {:select => :post}, :collection => {:available => :get}
     admin.resource :mail_settings
     admin.resource :inventory_settings
+    admin.resources :google_analytics
+    admin.resources :orders, :has_many => :shipments
     admin.resources :orders, :has_many => [:payments, :creditcards], :member => {:fire => :put, :resend => :post}
     admin.resources :orders do |order|
       order.resources :creditcard_payments, :member => {:capture => :get}
@@ -71,7 +82,12 @@ ActionController::Routing::Routes.draw do |map|
       taxonomy.resources :taxons
     end 
     admin.resources :reports, :only => [:index, :show], :collection => {:sales_total => :get}
+
+    admin.resources :shipments
+    admin.resources :shipping_methods
+    admin.resources :shipping_categories  
   end                   
+
   
   map.connect ':controller/:action/:id.:format'
   map.connect ':controller/:action/:id'  

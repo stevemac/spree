@@ -5,6 +5,8 @@
 require 'rbconfig'
 require 'digest/md5'
 require 'rails_generator/secret_key_generator'
+require 'generators/extension/extension_generator'
+require 'lib/plugins/string_extensions/lib/string_extensions'
 
 class InstanceGenerator < Rails::Generator::Base
   DEFAULT_SHEBANG = File.join(Config::CONFIG['bindir'],
@@ -30,7 +32,7 @@ class InstanceGenerator < Rails::Generator::Base
     usage if args.empty?
     usage("Databases supported for preconfiguration are: #{DATABASES.join(", ")}") if (options[:db] && !DATABASES.include?(options[:db]))
     @destination_root = args.shift
-    @app_name = File.basename(File.expand_path(@destination_root))
+    @app_name = File.basename(File.expand_path(@destination_root))  
   end
 
   def manifest
@@ -68,8 +70,6 @@ class InstanceGenerator < Rails::Generator::Base
       files = base_dirs + text_files + environments + scripts + public_files + frozen_gems
       files.map! { |f| f = $1 if f =~ %r{^#{root}/(.+)$}; f }
       
-      # hack to add specification (we're ignoring other hidden files)
-      files << "vendor/gems/active_presenter-0.0.4/.specification"
       files.sort!
       
       files.each do |file|
@@ -104,8 +104,10 @@ class InstanceGenerator < Rails::Generator::Base
       m.file "instance_routes.rb", "config/routes.rb"
       m.template "../../../../config/environment.rb", "config/environment.rb", :assigns => { :app_name => @app_name, :app_secret_key_to_be_replaced_in_real_app_by_generator => secret }
       m.file "../../../../config/boot.rb", "config/boot.rb"
-      m.file "../../../../config/initializers/spree.rb", "config/initializers/spree.rb"
-      m.file "../../../../config/initializers/locales.rb", "config/initializers/locales.rb"
+      m.template "session_store.rb", "config/initializers/session_store.rb", :assigns => { :app_name => @app_name, :app_secret_key_to_be_replaced_in_real_app_by_generator => secret }
+      %w{backtrace_silencers inflections locales mime_types new_rails_defaults searchlogic spree compass}.each do |initializer|
+        m.file "../../../../config/initializers/#{initializer}.rb", "config/initializers/#{initializer}.rb" 
+      end
       m.file "../../../../config/spree_permissions.yml", "config/spree_permissions.yml"
       
       # Demo Configuration
@@ -113,11 +115,13 @@ class InstanceGenerator < Rails::Generator::Base
         m.file "demo_mongrel_cluster.yml", "config/mongrel_cluster.yml"
         m.file "demo_robots.txt", "public/robots.txt"
       end
-      
-      # Install Readme
-      m.readme spree_root("INSTALL")
     end
-  end
+  end 
+  
+  def after_generate
+    Rails::Generator::Scripts::Generate.new.run(%w{extension site}, :destination => "#{@destination_root}/")
+    puts File.read("#{@destination_root}/INSTALL") unless options[:pretend]
+  end  
 
   protected
 

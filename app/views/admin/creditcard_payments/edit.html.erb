@@ -1,15 +1,18 @@
-<%= render :partial => 'shared/order_tabs', :locals => {:current => "Payments"} %>
+<%= render :partial => 'admin/shared/order_tabs', :locals => {:current => "Payments"} %>
 <br/>
 <h2><%= t("credit_card_payment")%></h2>
 <br/>
 <b><%= t("credit_card")%>: </b> &nbsp; #<%= @creditcard_payment.creditcard.display_number %><br/>
 <b><%= t("type")%> : </b> &nbsp; <%= @creditcard_payment.creditcard.cc_type.titleize %><br/>
-<br/>
-<% form_for(:payment_presenter, :url => object_url, :html => { :method => :put}) do |f| %>
+<br/>         
+<%=error_messages_for :creditcard_payment %>
+<% form_for(@creditcard_payment, :url => object_url, :html => { :method => :put}) do |payment_form| %>
 	<h4><%= t("billing_address")%></h4>
-	<%= render :partial => 'shared/form_address', :locals => {:f => f, :presenter_type => "payment"} %>
+	<% payment_form.fields_for :creditcard do |creditcard_form| %>
+	  <%= render :partial => 'admin/shared/form_address', :locals => {:f => creditcard_form} %>
+	<% end %>
 	<br/>
-	<table class="basic-table">
+	<table class="index">
 	  <tr>
 	    <th><%= t("transaction") %></th>
 	    <th><%= t("amount") %></th>
@@ -21,15 +24,14 @@
 	      <td><%=CreditcardTxn::TxnType.from_value t.txn_type.to_i%></td>
 	      <td><%=number_to_currency t.amount%></td>
 	      <td><%=t.response_code%></td>
-	      <td><%=t.created_at.to_s(:db)%></td>
+	      <td><%=t.created_at.to_s(:date_time24)%></td>
 	    </tr>
 	  <% end %>
 	</table>
 
-	<div align="right">
-		<br/>
-	  <%= submit_tag t('update') %>
-	</div>	
+	<p class="form-buttons">
+	  <%= button t('update') %>
+	</p>	
 
 <% end %>
 <%= link_to t("capture").titleize, capture_admin_order_creditcard_payment_url(@order, @creditcard_payment), :confirm => t('are_you_sure_you_want_to_capture') if @creditcard_payment.can_capture?  %> &nbsp;

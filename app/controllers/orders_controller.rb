@@ -1,9 +1,9 @@
-class OrdersController < Spree::BaseController
-  before_filter :require_user_account, :only => [:checkout]
-  before_filter :load_object, :only => [:checkout]          
-  before_filter :prevent_editing_complete_order, :only => [:edit, :update]            
+class OrdersController < Spree::BaseController     
+  include ActionView::Helpers::NumberHelper # Needed for JS usable rate information
+  
+  before_filter :prevent_editing_complete_order, :only => [:edit, :update, :checkout]            
 
-  ssl_required :show
+  ssl_required :show, :checkout
 
   resource_controller
   actions :all, :except => :index
@@ -13,9 +13,21 @@ class OrdersController < Spree::BaseController
   helper :products
 
   create.after do    
-    # add the specified product to the order
-    @order.add_variant(Variant.find(params[:variant][:id]))
+    params[:products].each do |product_id,variant_id|
+      quantity = params[:quantity].to_i if !params[:quantity].is_a?(Array)
+      quantity = params[:quantity][variant_id].to_i if params[:quantity].is_a?(Array)
+      @order.add_variant(Variant.find(variant_id), quantity) if quantity > 0
+    end if params[:products]
+    
+    params[:variants].each do |variant_id, quantity|
+      quantity = quantity.to_i
+      @order.add_variant(Variant.find(variant_id), quantity) if quantity > 0
+    end if params[:variants]
+    
     @order.save
+    
+    # store order token in the session
+    session[:order_token] = @order.token
   end
 
   create.after do
@@ -41,64 +53,57 @@ class OrdersController < Spree::BaseController
   create do
     flash nil 
     wants.html {redirect_to edit_order_url(@order)}
-  end
-                                                                           
-  edit.before { @order.edit! }
+  end     
   
-  def checkout
-    if @order.state == "in_progress"
-      @order.update_attribute :user, current_user
-      @order.update_attribute :ip_address, request.env['REMOTE_ADDR']
-      @order.next! 
-    end
-    if object.checkout_complete
-      # remove the order from the session
-      session[:order_id] = nil
-      redirect_to object_url(:checkout_complete => true) and return
-    else
-      # note: controllers participating in checkout process are responsible for calling Order#next! 
-      next_url = self.send("new_order_#{object.state}_url", @order)
-      redirect_to next_url
-    end
-  end
-
   # override the default r_c flash behavior
   update.flash nil
   update.response do |wants| 
     wants.html {redirect_to edit_order_url(object)}
   end  
 
-  destroy do
-    flash nil 
-    wants.html {redirect_to new_order_url}
-  end
+  #override r_c default b/c we don't want to actually destroy, we just want to clear line items
+  def destroy
+    @order.line_items.clear
+    respond_to do |format| 
+      format.html { redirect_to(edit_object_url) } 
+    end
+  end  
 
-  protected
-  def require_user_account
-    return if logged_in?
-    store_location
-    redirect_to signup_path 
+  # feel free to override this library in your own extension
+  include Spree::Checkout
+  
+  def can_access?
+    order = load_object    
+    session[:order_token] ||= params[:order_token]
+    order.grant_access?(session[:order_token])
   end
     
   private
   def build_object        
-    find_order
+    @object ||= find_order
   end
   
-  def object
-    if params[:id]
-      begin
-        @order = Order.find params[:id]
-      rescue ActiveRecord::RecordNotFound
-        @order = find_order
-      ensure
-        return @order
-      end
-    end
+  def object 
+    return Order.find_by_number(params[:id]) if params[:id]
     find_order
   end   
   
-  def prevent_editing_complete_order
-    redirect_to object_url unless @order.can_edit?
-  end
+  def prevent_editing_complete_order      
+    load_object
+    redirect_to object_url if @order.checkout_complete
+  end         
+  
+  def load_data     
+    @default_country = Country.find Spree::Config[:default_country_id]
+    @countries = Country.find(:all).sort  
+    @shipping_countries = @order.shipping_countries.sort  
+    @states = @default_country.states.sort
+  end 
+  
+  def rate_hash       
+    shipment = @order.shipments.last
+    @order.shipping_methods.collect { |ship_method| {:id => ship_method.id, 
+                                                     :name => ship_method.name, 
+                                                     :rate => number_to_currency(ship_method.calculate_shipping(shipment)) } }    
+  end 
 end

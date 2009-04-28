@@ -1,4 +1,10 @@
 class ZoneMember < ActiveRecord::Base
-  belongs_to :parent, :class_name => "Zone", :foreign_key => "parent_id"
-  belongs_to :member, :polymorphic => true
+  belongs_to :zone
+  belongs_to :zoneable, :polymorphic => true    
+  
+  def name   
+    return nil if zoneable.nil?
+    zoneable.name
+  end
+
 end

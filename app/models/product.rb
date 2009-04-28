@@ -10,24 +10,33 @@ class Product < ActiveRecord::Base
   has_many :properties, :through => :product_properties
   belongs_to :tax_category
   has_and_belongs_to_many :taxons
+  belongs_to :shipping_category
   
 
   validates_presence_of :name
   validates_presence_of :master_price
-  validates_presence_of :description
 
-  make_permalink :with => :name, :field => :permalink
+  accepts_nested_attributes_for :product_properties
+  
+  make_permalink
 
   alias :options :product_option_types
 
   # default product scope only lists available and non-deleted products
   named_scope :active, lambda { |*args| { :conditions => ["products.available_on <= ? and products.deleted_at is null", (args.first || Time.zone.now)] } }
+  named_scope :not_deleted, lambda { |*args| { :conditions => ["products.deleted_at is null", (args.first || Time.zone.now)] } }
   
   named_scope :available, lambda { |*args| { :conditions => ["products.available_on <= ?", (args.first || Time.zone.now)] } }
-  named_scope :by_name, lambda {|name| {:conditions => ["products.name like ?", "%#{name}%"]}}
-  named_scope :by_sku, lambda {|sku| { :include => :variants, :conditions => ["variants.sku like ?", "%#{sku}%"]}}
-  named_scope :deleted, :conditions =>  "not products.deleted_at is null"
 
+
+  named_scope :with_property_value, lambda { |property_id, value| { :include => :product_properties, :conditions => ["product_properties.property_id = ? AND product_properties.value = ?", property_id, value] } }
+
+                 
+  def to_param       
+    return permalink unless permalink.blank?
+    name.parameterize.to_s
+  end
+  
   # checks is there are any meaningful variants (ie. variants with at least one option value)
   def variants?
     self.variants.each do |v|
@@ -65,16 +74,44 @@ class Product < ActiveRecord::Base
   def has_stock?
     variants.inject(false){ |tf, v| tf ||= v.in_stock }
   end
-
+  
+  
+  # Adding properties and option types on creation based on a chosen prototype
+  
+  attr_reader :prototype_id
+  def prototype_id=(value)
+    @prototype_id = value.to_i
+  end
+  after_create :add_properties_and_option_types_from_prototype
+  
+  def add_properties_and_option_types_from_prototype
+    if prototype_id and prototype = Prototype.find_by_id(prototype_id)
+      prototype.properties.each do |property|
+        product_properties.create(:property => property)
+      end
+      self.option_types = prototype.option_types
+    end
+  end
+  
+  
+  
   private
 
-    def adjust_inventory    
+    def adjust_inventory
       return if self.new_record?
       return unless @quantity && @quantity.is_integer?    
       new_level = @quantity.to_i
       # don't allow negative on_hand inventory
       return if new_level < 0
       variant.save
+      variant.inventory_units.with_state("backordered").each{|iu|
+        if new_level > 0
+          iu.fill_backorder
+          new_level = new_level - 1
+        end
+        break if new_level < 1
+        }
+      
       adjustment = new_level - on_hand
       if adjustment > 0
         InventoryUnit.create_on_hand(variant, adjustment)

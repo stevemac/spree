@@ -1,36 +1,45 @@
 module Spree::BaseHelper
 
+  # this should be cart_path since it returns path only
+  # didn't wan't to change until we know what breaks so
+  # I named new helpers differently below - WN
   def cart_link
     return new_order_url if session[:order_id].blank?
     return edit_order_url(Order.find_or_create_by_id(session[:order_id]))
   end
   
-  def windowed_pagination_links(pagingEnum, options)
-    link_to_current_page = options[:link_to_current_page]
-    always_show_anchors = options[:always_show_anchors]
-    padding = options[:window_size]
-
-    current_page = pagingEnum.page
-    html = ''
-
-    #Calculate the window start and end pages 
-    padding = padding < 0 ? 0 : padding
-    first = pagingEnum.page_exists?(current_page  - padding) ? current_page - padding : 1
-    last = pagingEnum.page_exists?(current_page + padding) ? current_page + padding : pagingEnum.last_page
-
-    # Print start page if anchors are enabled
-    html << yield(1) if always_show_anchors and not first == 1
-
-  # Print window pages
-  first.upto(last) do |page|
-    (current_page == page && !link_to_current_page) ? html << page : html << yield(page)
+  def cart_path
+    cart_link
   end
-
-  # Print end page if anchors are enabled
-  html << yield(pagingEnum.last_page) if always_show_anchors and not last == pagingEnum.last_page
-  html
-  end 
   
+  
+  def link_to_cart(text=t('cart'))
+    path = cart_path
+    order = Order.find_or_create_by_id(session[:order_id]) unless session[:order_id].blank?
+    css_class = ''
+    unless order.nil?
+      line_items_count = order.line_items.size
+      return "" if current_page?(path)
+      text = "#{text}: (#{line_items_count}) #{order_price(order)}"
+      css_class = 'full' if line_items_count > 0
+    end
+    link_to text, path, :class => css_class
+  end
+  
+  def order_price(order, options={})
+    options.assert_valid_keys(:format_as_currency, :show_vat_text, :show_price_inc_vat)
+    options.reverse_merge! :format_as_currency => true, :show_vat_text => true
+    
+    # overwrite show_vat_text if show_price_inc_vat is false
+    options[:show_vat_text] = Spree::Tax::Config[:show_price_inc_vat]
+
+    amount =  order.item_total    
+    amount += Spree::VatCalculator.calculate_tax(order) if Spree::Tax::Config[:show_price_inc_vat]    
+
+    options.delete(:format_as_currency) ? number_to_currency(amount) : amount
+  end
+  
+
   def add_product_link(text, product) 
     link_to_remote text, {:url => {:controller => "cart", 
               :action => "add", :id => product}}, 
@@ -58,9 +67,9 @@ module Spree::BaseHelper
   
 
   # human readable list of variant options
-  def variant_options(v, allow_back_orders = Spree::Config[:allow_backorders])
-    list = v.option_values.map { |ov| "#{ov.option_type.presentation}: #{ov.presentation}" }.to_sentence({:connector => ","})
-    list = "<span class =\"out-of-stock\">(OUT OF STOCK) #{list}</span>" unless (v.in_stock or allow_back_orders)
+  def variant_options(v, allow_back_orders = Spree::Config[:allow_backorders], include_style = true)
+    list = v.option_values.map { |ov| "#{ov.option_type.presentation}: #{ov.presentation}" }.to_sentence({:words_connector => ", ", :two_words_connector => ", "})
+    list = include_style ? "<span class =\"out-of-stock\">(" + t("out_of_stock") + ") #{list}</span>" : "#{t("out_of_stock")} #{list}" unless (v.in_stock or allow_back_orders)
     list
   end  
   
@@ -87,4 +96,17 @@ module Spree::BaseHelper
       image_tag product.images.first.attachment.url(:product)  
     end
   end
+  
+  def meta_data_tags
+    return unless self.respond_to?(:object) && object
+    "".tap do |tags|
+      if object.respond_to?(:meta_keywords) and object.meta_keywords.present?
+        tags << tag('meta', :name => 'keywords', :content => object.meta_keywords) + "\n"
+      end
+      if object.respond_to?(:meta_description) and object.meta_description.present?
+        tags << tag('meta', :name => 'description', :content => object.meta_description) + "\n"
+      end
+    end
+  end
+  
 end

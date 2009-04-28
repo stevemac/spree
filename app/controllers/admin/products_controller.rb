@@ -9,11 +9,20 @@ class Admin::ProductsController < Admin::BaseController
     @product.tax_category = TaxCategory.find_by_name Spree::Config[:default_tax_category]
   end
   
+  new_action.response do |wants|
+    wants.html {render :action => :new, :layout => false}
+  end
+
   update.before do
     # note: we only reset the product properties if we're receiving a post from the form on that tab
     next unless params[:clear_product_properties] 
     params[:product] ||= {}
     params[:product][:product_property_attributes] ||= {} if params[:product][:product_property_attributes].nil?
+  end
+
+  create.response do |wants| 
+    # go to edit form after creating as new product
+    wants.html {redirect_to edit_admin_product_url(Product.find(@product.id)) }
   end
 
   update.response do |wants| 
@@ -56,23 +65,21 @@ class Admin::ProductsController < Admin::BaseController
     end
     
     def collection
-      @name = params[:name] || ""
-      @sku = params[:sku] || ""
-      @deleted =  (params.key?(:deleted)  && params[:deleted] == "on") ? "checked" : ""
       
-      if @sku.blank?
-        if @deleted.blank?
-          @collection ||= end_of_association_chain.active.by_name(@name).find(:all, :order => :name, :page => {:start => 1, :size => Spree::Config[:admin_products_per_page], :current => params[:p]})
-        else
-          @collection ||= end_of_association_chain.deleted.by_name(@name).find(:all, :order => :name, :page => {:start => 1, :size => Spree::Config[:admin_products_per_page], :current => params[:p]})  
-        end
+      #use the active named scope only if the 'show deleted' checkbox is unchecked
+      if params[:search].nil? || params[:search][:conditions].nil? || params[:search][:conditions][:deleted_at_is_not_null].blank?
+        @search = end_of_association_chain.not_deleted.new_search(params[:search])
       else
-        if @deleted.blank?
-          @collection ||= end_of_association_chain.active.by_name(@name).by_sku(@sku).find(:all, :order => :name, :page => {:start => 1, :size => Spree::Config[:admin_products_per_page], :current => params[:p]})
-        else
-          @collection ||= end_of_association_chain.deleted.by_name(@name).by_sku(@sku).find(:all, :order => :name, :page => {:start => 1, :size => Spree::Config[:admin_products_per_page], :current => params[:p]})
-        end
+        @search = end_of_association_chain.new_search(params[:search])
       end
+
+      #set order by to default or form result
+      @search.order_by ||= :name
+      @search.order_as ||= "ASC"
+      #set results per page to default or form result
+      @search.per_page = Spree::Config[:admin_products_per_page]
+      @search.include = :images
+      @collection = @search.all
     end
 
     # override rc_default build b/c we need to make sure there's an empty variant added to each product
