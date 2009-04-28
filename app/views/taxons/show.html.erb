@@ -1,3 +1,6 @@
+<% content_for :title do %>
+    <title><%= @taxon.name %> at <%= store_name %></title>
+<% end %>
 <h1><%= @taxon.name %></h1>
 
 <% if @taxon.children.empty? %>

@@ -1,3 +1,7 @@
+<% content_for :title do %>
+    <title><%= @product.name %> at <%= store_name %></title>  
+<% end %>
+
 <% @body_id = 'product-details' %>
 
 <h1><%= @product.name %></h1>

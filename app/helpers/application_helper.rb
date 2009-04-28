@@ -18,4 +18,8 @@ module ApplicationHelper
     "#{code.to_s.split("-").last.downcase}.png"
   end                      
 
+  def store_name
+      Spree::Config[:store_name]
+  end
+
 end

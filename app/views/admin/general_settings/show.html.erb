@@ -6,12 +6,29 @@
   <tr>
     <th scope="row"><%= t("site_name") %>:</th> 
     <td><%=  Spree::Config[:site_name] %></td>
-  </tr>
-  <tr>
+    </tr>
+    <tr>
     <th scope="row"><%= t("site_url") %>:</th> 
     <td><%=  Spree::Config[:site_url] %></td>
   </tr>
+ 
   <tr>
+    <th scope="row"><%= t("store_name") %>:</th> 
+    <td><%=  Spree::Config[:store_name] %></td>
+   </tr>
+   <tr>
+    <th scope="row"><%= t("store_title") %>:</th> 
+    <td><%=  Spree::Config[:store_title] %></td>
+   </tr>
+    <tr>
+    <th scope="row"><%= t("product_title") %>:</th> 
+    <td><%=  Spree::Config[:product_title] %></td>
+   </tr>
+    <tr>
+    <th scope="row"><%= t("section_title") %>:</th> 
+    <td><%=  Spree::Config[:section_title] %></td>
+   </tr>
+ <tr>
 	<td colspan="2">
 	  SSL will <%= Spree::Config[:allow_ssl_in_production] ? '' : 'NOT' %> be used in production
 	  mode if necessary.	  		

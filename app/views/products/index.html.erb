@@ -1,3 +1,11 @@
+<% content_for :title do 
+  if @taxon %>
+     <title><%= @tason.name %> at <%= store_name %></title>
+  <% else %> 
+    <title><%= store_name %></title>
+  <% end %>
+<% end %>
+
 <% content_for :sidebar do %>
 	<%= render :partial => "shared/taxonomies" %>
 <% end %>

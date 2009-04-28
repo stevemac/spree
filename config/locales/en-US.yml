@@ -444,6 +444,11 @@ en-US:
   sign_up: "Sign up"
   site_name: "Site Name"
   site_url: "Site URL"
+  store_name: "Store Name"
+  store_title: "Store Title"
+  product_title: "Product Title"
+  section_title: "Section Title"
+
   sku: SKU
   smtp: SMTP
   smtp_authentication_type: SMTP Authentication Type         
