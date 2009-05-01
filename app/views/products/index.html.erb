@@ -6,7 +6,7 @@
    if store_title && (store_title.length > 0)
       myTitle = store_title
       if store_name && (store_name.length > 0)
-         myTitle.sub!('%STORE%',store_name)
+         myTitle.sub!('__STORE__',store_name)
       end
   end
 %>

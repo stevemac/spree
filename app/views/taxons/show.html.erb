@@ -1,14 +1,14 @@
 <%
-# subs can be %STORE%, %SECTION%, %CRUMBS% and %PAGE%.
+# subs can be __STORE__, __SECTION__, __CRUMBS__ and __PAGE__.
 theTitle = @taxon.name
 if store_name
 	theTitle = @taxon.name + " at " + store_name
 	if (section_title && (section_title.length > 0))
    	theTitle = section_title.dup
-		theTitle.sub!('%STORE%',store_name)
-		theTitle.sub!('%SECTION%',@taxon.name)
-		theTitle.sub!('%CRUMBS%',"")
-		theTitle.sub!('%PAGE%',"")
+		theTitle.sub!('__STORE__',store_name)
+		theTitle.sub!('__SECTION__',@taxon.name)
+		theTitle.sub!('__CRUMBS__',"")
+		theTitle.sub!('__PAGE__',"")
 	end
 end
 %>

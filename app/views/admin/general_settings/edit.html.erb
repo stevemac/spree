@@ -15,22 +15,22 @@
   <p>
 	<label><%= t('store_name') %></label>
         <%= text_field_tag('preferences[store_name]', Spree::Config[:store_name])%><br/>
-        <small>Is used to supply %STORE% to other titles</small
+        <small>Is used to supply __STORE__ to other titles</small
  </p>	
   <p>
 	<label><%= t('store_title') %></label>
         <%= text_field_tag('preferences[store_title]', Spree::Config[:store_title])%><br/>
-        <small>Can use %STORE% to supply store name</small>
+        <small>Can use __STORE__ to supply store name</small>
  </p>	
   <p>
 	<label><%= t('product_title') %></label>
         <%= text_field_tag('preferences[product_title]', Spree::Config[:product_title])%><br />
-        <small>Can use %STORE% to supply store name and %PRODUCT% for product name.</small>
+        <small>Can use __STORE__ to supply store name and __PRODUCT__ for product name.</small>
 </p>
   <p>
 	<label><%= t('section_title') %></label>
         <%= text_field_tag('preferences[section_title]', Spree::Config[:section_title])%><br/>
-        <small>Can use %STORE% for store name and %SECTION% for section name.</small>
+        <small>Can use __STORE__ for store name and __SECTION__ for section name.</small>
 </p>
 
 

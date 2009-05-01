@@ -3,9 +3,9 @@ myTitle = ""
 if store_name
 	myTitle = @product.name + " at " + store_name
     if (product_title && (product_title.length > 0))
-	  myTitle = product_title
-	  myTitle.sub!('%PRODUCT%',@product.name)
-	  myTitle.sub!('%STORE%',store_name)
+	  myTitle = product_title.dup
+	  myTitle.sub!('__PRODUCT__',@product.name)
+	  myTitle.sub!('__STORE__',store_name)
 	end
 end
 %>
