@@ -1,5 +1,13 @@
+<%
+    myTitle = @product.name + " at " + store_name
+    if (product_title && (product_title.length > 0))
+        myTitle = product_title
+        myTitle.sub!("%PRODUCT%",@product.name)
+        myTitle.sub!("%STORE%",store_name)
+    end
+%>
 <% content_for :title do %>
-    <title><%= @product.name %> at <%= store_name %></title>  
+    <title><%= myTitle  %></title>  
 <% end %>
 
 <% @body_id = 'product-details' %>

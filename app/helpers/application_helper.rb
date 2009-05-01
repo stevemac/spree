@@ -21,5 +21,13 @@ module ApplicationHelper
   def store_name
       Spree::Config[:store_name]
   end
-
+  def store_title
+      Spree::Config[:store_title]
+  end
+  def product_title
+      Spree::Config[:product_title]
+  end
+  def section_title
+      Spree::Config[:section_title]
+  end
 end

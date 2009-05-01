@@ -1,9 +1,11 @@
-<% content_for :title do 
-  if @taxon %>
-     <title><%= @tason.name %> at <%= store_name %></title>
-  <% else %> 
-    <title><%= store_name %></title>
-  <% end %>
+<%
+    myTitle = store_name   # the default
+    if store_title && (store_title.length > 0)
+        myTitle = store_title
+    end
+%>
+<% content_for :title do  %>
+<title><%= myTitle %></title>
 <% end %>
 
 <% content_for :sidebar do %>

@@ -1,5 +1,16 @@
+<%
+# subs can be %STORE%, %SECTION%, %CRUMBS% and %PAGE%.
+myTitle = @taxon.name + " at " + store_name
+if (section_title && (section_title.length > 0))
+    myTitle = section_title
+    myTitle.sub!("%STORE%",store_name)
+    myTitle.sub!("%SECTION%",@taxon.name)
+    myTitle.sub!("%CRUMBS%","")
+    myTitle.sub!("%PAGE%","")
+end
+%>
 <% content_for :title do %>
-    <title><%= @taxon.name %> at <%= store_name %></title>
+    <title><%= myTitle %></title>
 <% end %>
 <h1><%= @taxon.name %></h1>
 
