@@ -1,16 +1,19 @@
 <%
 # subs can be %STORE%, %SECTION%, %CRUMBS% and %PAGE%.
-myTitle = @taxon.name + " at " + store_name
-if (section_title && (section_title.length > 0))
-    myTitle = section_title
-    myTitle.sub!("%STORE%",store_name)
-    myTitle.sub!("%SECTION%",@taxon.name)
-    myTitle.sub!("%CRUMBS%","")
-    myTitle.sub!("%PAGE%","")
+theTitle = @taxon.name
+if store_name
+	theTitle = @taxon.name + " at " + store_name
+	if (section_title && (section_title.length > 0))
+   	theTitle = section_title.dup
+		theTitle.sub!('%STORE%',store_name)
+		theTitle.sub!('%SECTION%',@taxon.name)
+		theTitle.sub!('%CRUMBS%',"")
+		theTitle.sub!('%PAGE%',"")
+	end
 end
 %>
 <% content_for :title do %>
-    <title><%= myTitle %></title>
+    <title><%= theTitle %></title>
 <% end %>
 <h1><%= @taxon.name %></h1>
 

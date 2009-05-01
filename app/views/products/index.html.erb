@@ -1,8 +1,14 @@
 <%
+  myTitle = ""
+  if store_name
     myTitle = store_name   # the default
-    if store_title && (store_title.length > 0)
-        myTitle = store_title
-    end
+  end
+   if store_title && (store_title.length > 0)
+      myTitle = store_title
+      if store_name && (store_name.length > 0)
+         myTitle.sub!('%STORE%',store_name)
+      end
+  end
 %>
 <% content_for :title do  %>
 <title><%= myTitle %></title>

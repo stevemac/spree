@@ -1,10 +1,13 @@
 <%
-    myTitle = @product.name + " at " + store_name
+myTitle = ""
+if store_name
+	myTitle = @product.name + " at " + store_name
     if (product_title && (product_title.length > 0))
-        myTitle = product_title
-        myTitle.sub!("%PRODUCT%",@product.name)
-        myTitle.sub!("%STORE%",store_name)
-    end
+	  myTitle = product_title
+	  myTitle.sub!('%PRODUCT%',@product.name)
+	  myTitle.sub!('%STORE%',store_name)
+	end
+end
 %>
 <% content_for :title do %>
     <title><%= myTitle  %></title>  
